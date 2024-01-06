@@ -156,8 +156,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1, // this remove the field from document
       },
     },
     {
@@ -205,17 +205,17 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: true,
     };
 
-    const { accessToken, newRefreshToken } =
+    const { accessToken, refreshToken } =
       await generateAccessAndRefreshTokens(user._id);
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { refreshToken: newRefreshToken, accessToken },
+          { refreshToken, accessToken },
           "Access token refreshed"
         )
       );
@@ -339,7 +339,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
     {
       $lookup: {
-        from: "subscription",
+        from: "subscriptions",
         localField: "_id",
         foreignField: "channel",
         as: "subscribers",
@@ -347,7 +347,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
     {
       $lookup: {
-        from: "subscription",
+        from: "subscriptions",
         localField: "_id",
         foreignField: "subscriber",
         as: "subscribedTo",
@@ -397,10 +397,11 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 });
 
 const getWatchHistory = asyncHandler(async(req, res)=> {
+  
   const user = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(req.user?._id)
+        _id: new mongoose.Types.ObjectId(req.user?._id),
       }
     },
     {
@@ -420,7 +421,7 @@ const getWatchHistory = asyncHandler(async(req, res)=> {
                 {
                   $project: {
                     fullName: 1,
-                    username: 1,
+                    userName: 1,
                     avatar: 1
                   }
                 }
@@ -436,14 +437,14 @@ const getWatchHistory = asyncHandler(async(req, res)=> {
           }
         ]
       }
-    }
+    },
   ])
 
   return res
   .status(200)
   .json(new ApiResponse(200, user[0].watchHistory, "Watch History fetched successfully"))
 
-})
+});
 
 export {
   registerUser,
